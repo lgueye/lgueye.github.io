@@ -73,10 +73,25 @@ Which one would you prefer ?
 I personnally find Consul less intrusive and closer to the standard: as I said, DNS has been around for a while.
 In addition, consul is consistent because it's based on [Raft Consensus Algorithm](https://raft.github.io/). Raft is out of the scope of this post but, in a nutshell, it provides strong guaranties on a cluster state: all cluster consumers see the same information which is always more reliable.
 
-Example implementation for Consul
+Example implementation with Consul
 ===
 
-# The server
+A good implementation is always driven by a good use case.
+The following use case seems quite relevant to demonstrate Consul Service Discovery capabilities/
 
+- the server
+  - 3 consul server nodes
+  - responsible for maintainig consistent state in the whole cluster. The hole cluster is the set of all server nodes as well as all client nodes (agents)
+- the clients
+  - Service A: distributed on 2 nodes
+  - Service B: distributed on 2 nodes, depends on service A
+
+There are 3 main events in the regular lifecycle of this discovery mechanism:
+
+- server cluster formation: happens at the very begining, when server nodes try to find each other.
+- client registration: when the client node starts, it makes the whole cluster aware that it is available to serve requests. it registers itself under a unique service name.
+- client de-registration: when the client stops consul removes it from the service nodes. The service is still available: requests will be routed to other alive nodes of the service. A service will be considered down when all members are unreachable
+
+The beauty of consul is that, as a developer, you need to worry about none of this mechanic. It is all taken care of. You need to discribe a behavior, not to implement it.
 
 
