@@ -34,7 +34,7 @@ Possible solutions
 ===
 
 No need to hide it anymore, I'm definitely in favor of the Server Discovery strategy because it is decoupled from the clients.
-As I mentioned ealier, the discovery mechanism works with a naming convention between clients and servers.
+As I mentioned earlier, the discovery mechanism works with a naming convention between clients and servers.
 
 Discovery solutions mainly emerged with containerized envs but some are not limited to. For instance [Consul](https://www.consul.io/) can be used in both containerized and classic environments.
 
@@ -70,7 +70,7 @@ Consider situation 2:
 
 Which one would you prefer ? 
 
-I personnally find Consul less intrusive and closer to the standard: as I said, DNS has been around for a while.
+I personally find Consul less intrusive and closer to the standard: as I said, DNS has been around for a while.
 In addition, consul is consistent because it's based on [Raft Consensus Algorithm](https://raft.github.io/). Raft is out of the scope of this post but, in a nutshell, it provides strong guaranties on a cluster state: all cluster consumers see the same information which is always more reliable.
 
 Example implementation with Consul
