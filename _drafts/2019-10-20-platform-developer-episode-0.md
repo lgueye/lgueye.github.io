@@ -3,8 +3,10 @@ layout: post
 title: Platform developer: episode 0
 ---
 
-Hello everybody welcome back to the `Platform developer` series. In this episode we'll be describing the steps required to implement a platform component.
-After implementing numerous infrastructure components, the experience shows that, no matter the component, we can always breakdown its implementation in 5 main steps:
+Hello everybody welcome to the `Platform developer` series. In this series I'm willing to share my past experience on building quite a few platform components. I tried to follow the same development steps for all my components which I'll share with you in this series.
+This episode will describe the rationale behind each step.
+
+The experience shows that, no matter the component, we can always breakdown its initial implementation in 5 main steps:
 
 - provision
 - secure
@@ -84,7 +86,7 @@ At the core of it you would:
 
 You definitely don't want to do that manually for each component required for your release.
 You can codify these steps with suitable tools. My tool of choice is Ansible but you can choose any tool that makes you confident and comfortable
-The alternative is to take advantage of your platform which usually implements various release strategies. But moving to such platforms comes at a high price.
+The alternative is to take advantage of your platform (K8s) which usually implements various release strategies. But moving to such platforms comes at a high price.
 
 Integrate consumers
 ===
@@ -99,7 +101,7 @@ The biggest challenge of clients is suitability: when a client is not suitable f
 - flexibility: the client must be flexible enough. For instance some consumers might be interested in a dry-run and should be able to configure it easily
 
 The last bit of the integration is a realistic runnable example which can take the form of a test.
-I'm not going to remind you the numerous benefits of automated tests. They usually take time to setup but benefits vastly outweighs the investment in the long run
+I'm not going to remind you the numerous benefits of automated tests. They usually take time to setup but benefits vastly outweighs the investment in the long run.
 
 
 Tests
@@ -114,4 +116,6 @@ A meaningful test suite can be expansible to build but will payoff in the long r
 Wrap-up
 ===
 
-This 
+This is basically the discipline I try to follow when developping components.
+Let's see it in action in the next episode. Stay tuned !
+
