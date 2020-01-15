@@ -78,11 +78,11 @@ On the other hand upgrading with zero downtime is the GRAAL of Agile IT because 
 At the core of it you would:
 - upgrade DB or any other dependencies like queues, topics, etc: requires that the upgrade of the dependencies to be backward compatible because version N is still running 
 - for each node, node after node:
--- deploy version N+1: N+1 is started but is not receiving any traffic
--- drain version N
--- switch traffic to N+1
--- stop version N
--- check compliance (metrics, logs, security, etc) 
+  - deploy version N+1: N+1 is started but is not receiving any traffic
+  - drain version N
+  - switch traffic to N+1
+  - stop version N
+  - check compliance (metrics, logs, security, etc) 
 
 You definitely don't want to do that manually for each component required for your release.
 You can codify these steps with suitable tools. My tool of choice is Ansible but you can choose any tool that makes you confident and comfortable
