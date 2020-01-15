@@ -54,8 +54,51 @@ As for non containerized envs I always go for [Hashicorp Consul](https://www.con
 - Even the opensource UI is high-quality, this extra effort needs our acknowledgement
 
 
-Example implementation with Consul
+Example implementation of Consul
 ===
+
+If your were to evaluate [Hashicorp Consul](https://www.consul.io) I would suggest to follow the steps I mentioned in [episode 0](https://lgueye.github.io).
+
+The definition of done could be to have a consumer which is able to find a producer service through consul.
+We could go further by shutting down 1 instance of the consumer should still be able to find the producer service
+All in all, to achieve this basic evaluation, we would need 8 compute instances:
+- 3 consul server nodes
+- 2 consumer node
+- 2 producer nodes
+- 1 test node (runs scenarii at startup)
+
+Provision
+===
+
+Since the comppute instance run in [Digital Ocean](), the api key and secret are needed to execute [Hashicorp Terraform](), our provisioning tool.
+
+The goal is to:
+- describe the desired infrastructure in various `.tf` files
+- successfuly run `terraform plan`
+- successfuly run `terraform apply`
+- then later run `terraform destroy`
+
+
+
+[Hashicorp Terraform]() will collect the output of those instances creation and write it in a `.tfstate` file.
+
+The format of that file can't be used as is by the next tool in the chain: [Ansible]() (the orchestration tool)
+Nicolas Berring created a terraform plugin that extends the input `.tf` files. The extension allows to 
+- collect generated IPs
+- name a host
+- assign the host to groups
+
+
+to the newly cre `.tfstate` relevant sections and generates an Ansible inventory which is the scope (collection of nodes organized in groups) against which all orchestration operation apply
+
+
+Orchestrate deployments
+===
+
+The plugin also creates a `dynamic inventory` from the exectution output (`.tfstate` file)
+That inventory becomes the input of an
+
+
 
 A good implementation is always driven by a good use case.
 The following use case seems quite relevant to demonstrate Consul Service Discovery capabilities/
