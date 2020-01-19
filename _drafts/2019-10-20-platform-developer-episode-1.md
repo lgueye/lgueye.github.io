@@ -67,37 +67,189 @@ All in all, to achieve this basic evaluation, we would need 8 compute instances:
 - 2 producer nodes
 - 1 test node (runs scenarii at startup)
 
-Provision
+Infrastructure provisioning
 ===
 
-Since the comppute instance run in [Digital Ocean](), the api key and secret are needed to execute [Hashicorp Terraform](), our provisioning tool.
+Self-service infrastructure usually implies a cloud provider somewhere, be it public or private. 
+Operating the cloud provider requires credentials. In the case of [Digital Ocean]() it's an API token.
+Also, any provider somehow needs to configure the `root account` of the instance being created. It's usually the `root` ssh key pairs which will be uploaded in the `/root/.ssh` folder of the instance.
+But these are credentials. You can't hardcode them nor include them in your terraform scripts since they're pushed in your SCM. You need to provide them in the command line and reuse them in the terraform scripts.
 
-The goal is to:
-- describe the desired infrastructure in various `.tf` files
-- successfuly run `terraform plan`
-- successfuly run `terraform apply`
-- then later run `terraform destroy`
+I use [Hashicorp Terraform]() to drive my [Digital Ocean]() provider.
+You must install it.
+```
+$ terraform -version
+Terraform v0.12.19
+
+```
+
+Your terraform command line could like this:
+
+```
+$ terraform plan -var "do_token=${DO_API_TOKEN}" -var "pub_key=${HOME}/.ssh/id_rsa.pub" -var "pvt_key=${HOME}/.ssh/id_rsa" ...
+```
+
+And the corresponding terraform script could look like this:
+
+```
+# provider variables
+variable "do_token" {}
+variable "pub_key" {}
+variable "pvt_key" {}
+variable "ssh_fingerprint" {}
+
+provider "digitalocean" {
+  token = var.do_token
+}
+
+```
+
+In the above command line you can see that the credentials belong to the operator which runs terraform.
+This is a problem because once the instance is created, only the operator will access it.
+Meet your 1st collaboration issue. It needs to be addressed as soon as possible because any operator with power of the organization needs to be able to provision instances.
+
+There are 3 common strategies which fix this collaboration issue:
+
+- terraform enterprise
+- a central machine (usually the Continuous integration machine) setup with shared ssh key (a home made version of the previous strategy which comes with its own challenges)
+- maintain a list of ssh keys of users with power and add them to the instances (works for small teams but not really an option to scale)
+
+Pick the strategy which best fits your organization and start developing provisioning scripts with terraform.
+
+Coming back to our initial goal, we need to provision 8 compute instances. Providers have greatly simplified provisioning management.
+One can specify physical specs (compute capacity, memory, storage), operating system image (ubuntu 18.04 for instance), datacenter location (london, frankfurt, etc), host name, root account, networking specs and meta data.
+Below, an example of such declaration in terraform:
+
+```
+resource "digitalocean_droplet" "discovery_server_01_droplet" {
+  image = var.droplet_image
+  name = "${var.discovery_server_role}-01"
+  region = var.primary_datacenter_name
+  size = var.droplet_size
+  private_networking = true
+  ssh_keys = [
+    "${var.ssh_fingerprint}"]
+  tags = [
+    "${var.target_env}",
+    "${var.discovery_server_role}"]
+}
+```
+
+By now we have described our infrastructure and terraform can execute that description.
+The provider will assign IPs to each instance which will be collected (among other characteristics) in the provider http response.
+These information will be codified in the terraform state file (`.tfstate`). This file captures the state of the infrastructure at the time terraform has executed.
+It's also thanks to that state that terraform is idempotent.
+
+Well you just got operational instances but frankly they're not so useful because the're just linux naked boxes.
+You need to configure them and deploy useful applications. That's a job for the next tool in the chain: Ansible.
 
 
-
-[Hashicorp Terraform]() will collect the output of those instances creation and write it in a `.tfstate` file.
-
-The format of that file can't be used as is by the next tool in the chain: [Ansible]() (the orchestration tool)
-Nicolas Berring created a terraform plugin that extends the input `.tf` files. The extension allows to 
-- collect generated IPs
-- name a host
-- assign the host to groups
-
-
-to the newly cre `.tfstate` relevant sections and generates an Ansible inventory which is the scope (collection of nodes organized in groups) against which all orchestration operation apply
-
-
-Orchestrate deployments
+Application provisioning and deployments
 ===
 
-The plugin also creates a `dynamic inventory` from the exectution output (`.tfstate` file)
-That inventory becomes the input of an
+In the previous chapter we've created instances and the result of the execution is stored in a `.tfstate` file. 
+Ansible input is an inventory which describes a set of hosts organized in groups.
+Each execution can match several groups which include the hosts under those groups. Matching supports intersections, union and wildcard. 
+Unfortunately, Ansible does not understand `tfstate`. Nicolas Bering was kind enough to write 2 tools which address this issue
+- a [terraform ansible provider](https://github.com/nbering/terraform-provider-ansible). The goal of the plugin is to extend terraform script by describing ansible hosts and ansible groups that will belong to the inventory
+- a [terraform inventory](https://github.com/nbering/terraform-inventory) which dynamically generates an inventory from a `.tfstate` file.
 
+The below snipet declares a host, the groups it belongs to and the vars associated to it
+```
+resource "ansible_host" "discovery_server_01_droplet" {
+  inventory_hostname = digitalocean_droplet.discovery_server_01_droplet.name
+  groups = [
+    "${var.target_env}",
+    "${var.discovery_server_role}",
+    "${var.primary_datacenter_role}"]
+  vars = {
+    ansible_host = "${digitalocean_droplet.discovery_server_01_droplet.ipv4_address}"
+    ansible_python_interpreter = "${var.ansible_python_interpreter}"
+    datacenter_name = var.primary_datacenter_name
+    datacenter_role = "${var.primary_datacenter_role}"
+  }
+}
+```
+
+This is how I use the inventory:
+```
+export ANSIBLE_TF_DIR=../terraform/ && ansible-playbook --vault-id ~/.ansible_vault_pass.txt -i /etc/ansible/terraform.py shared.yml -e "target_env=staging rev=`git log -1 --pretty='%h'`"
+```
+
+A lot happens in that command line:
+- the export statement `export ANSIBLE_TF_DIR=../terraform/` is important for the inventory `-i /etc/ansible/terraform.py`. The inventory script downloaded from Nicolas Bering github space has been installed at `/etc/ansible/terraform.py`. It requires to know the location of the `.tfstate` directory.
+- sensitive data are encrypted in the script and you need the password stored in `~/.ansible_vault_pass.txt` to decrypt them
+- scripts need to know which revision we're cloning
+- scripts need to know which env we're targeting. Each host in the inventory belongs to a `ènv` group making it easy to target all `staging` hosts for instance ignoring all `prod` (which can be helpful)
+- shared.yml is the main script which contains the provisioning logic.
+
+In order to write a proper Consul provisioning one must understand how it works. At the core:
+- a servers cluster which maintain the cluster state in a key value store
+- clients installed as side cars, that also belong to the cluster but don't manage the cluster state
+
+You must write at least 2 provisioning scripts
+- one to bootstrap the servers cluster.
+- one to install a client on an arbitrary node. The consul client joins the servers and becomes a proxy to the servers.
+
+In our example the following node are all consul client nodes:
+- consumer node
+- producer nodes
+- test node
+
+Ansible will install a consul client on those nodes because they were declared in the tfstate as belonging to a `discovery_client_role` group
+```
+- hosts: "&{{ target_env }}:&discovery-client"
+  remote_user: "root"
+  become: 'yes'
+  roles:
+  - { role: 'discovery/deploy_consul' }
+
+# Upgrade consul on all clients
+- hosts: "{{target_env}}:&discovery-client"
+  remote_user: "root"
+  become: 'yes'
+  tasks:
+  - block:
+    - include_role: {name: 'oefenweb.dnsmasq'}
+    - name: "[systemd-resolved vs dnsmasq conflict]: update local name server"
+      lineinfile:
+        path: /etc/resolv.conf
+        regexp: '^nameserver 127.0.0.53'
+        line: 'nameserver 127.0.0.1'
+    - name: "[systemd-resolved vs dnsmasq conflict]: stop systemd-resolved.service"
+      service: name="systemd-resolved" state='stopped'
+    - name: "[systemd-resolved vs dnsmasq conflict]: disable systemd-resolved.service"
+      service: name="systemd-resolved" enabled='false'
+    - name: "[systemd-resolved vs dnsmasq conflict]: restart dnsmasq.service"
+      service: name="dnsmasq" state='restarted'
+    rescue:
+    - fail:
+        msg: "Failed to upgrade consul client"
+
+- hosts: "&{{ target_env }}:&discovery-client"
+  remote_user: "root"
+  become: 'yes'
+  roles:
+  - { role: 'discovery/upgrade_consul', node_role: 'client'}
+
+```
+
+The server nodes were declared as belonging to a `discovery_server_role` group so they'll benefit from the server provisioning.
+```
+- hosts: 'localhost'
+  connection: 'local'
+  gather_facts: yes
+  roles:
+  - { role: 'discovery/download_consul' }
+
+- hosts: "&{{ target_env }}:&discovery-server"
+  remote_user: "root"
+  become: 'yes'
+  roles:
+  - { role: 'discovery/deploy_consul' }
+  - { role: 'discovery/upgrade_consul', node_role: 'server'}
+
+```
 
 
 A good implementation is always driven by a good use case.
@@ -105,17 +257,17 @@ The following use case seems quite relevant to demonstrate Consul Service Discov
 
 - the server
   - 3 consul server nodes
-  - responsible for maintainig consistent state in the whole cluster. The hole cluster is the set of all server nodes as well as all client nodes (agents)
+  - responsible for maintaining consistent state in the whole cluster. The hole cluster is the set of all server nodes as well as all client nodes (agents)
 - the clients
   - Service A: distributed on 2 nodes
   - Service B: distributed on 2 nodes, depends on service A
 
 There are 3 main events in the regular lifecycle of this discovery mechanism:
 
-- server cluster formation: happens at the very begining, when server nodes try to find each other.
+- server cluster formation: happens at the very beginning, when server nodes try to find each other.
 - client registration: when the client node starts, it makes the whole cluster aware that it is available to serve requests. it registers itself under a unique service name.
 - client de-registration: when the client stops consul removes it from the service nodes. The service is still available: requests will be routed to other alive nodes of the service. A service will be considered down when all members are unreachable
 
-The beauty of consul is that, as a developer, you need to worry about none of this mechanic. It is all taken care of. You need to discribe a behavior, not to implement it.
+The beauty of consul is that, as a developer, you need to worry about none of this mechanic. It is all taken care of. You need to describe a behavior, not to implement it.
 
 
