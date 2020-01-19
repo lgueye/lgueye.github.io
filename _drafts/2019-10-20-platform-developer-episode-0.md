@@ -16,7 +16,7 @@ The experience shows that, no matter the component, we can always breakdown its 
 
 Let's take a closer look at each step.
 
-Provision
+Infrastructure provisioning
 ====
 
 To understand what needs to be done in the scope of provisioning you must put yourself in the following situation:
@@ -46,7 +46,7 @@ The idea of terraform is quite simple:
 Terraform will codify the state of its execution in a file. You will want to save that file either in your SCM (Source control management) if you trust it, or in a remote store that you trust.
 It's important if you wish to infer the correct state on the next execution. It's also a convenient way to collaborate: remember that any operator can update the infrastructure.
 
-Secure
+Infrastructure security
 ====
 
 In practice, a provisioning tool runs on behalf of an operator (be it human or not) machine. 
@@ -67,7 +67,8 @@ You'll want a solid automated workflow that will allow you to almost forget abou
 I'm not a security expert but it seems that Hashicorp Vault is able to manage all those secret, audit your access, expire them automatically and even provide one shot credentials.
 I've never witnessed it but it looks like the de-facto industry standard.
 
-Orchestrate deployments
+
+Application provisioning and deployments
 ===
 
 
@@ -88,7 +89,7 @@ You definitely don't want to do that manually for each component required for yo
 You can codify these steps with suitable tools. My tool of choice is Ansible but you can choose any tool that makes you confident and comfortable
 The alternative is to take advantage of your platform (K8s) which usually implements various release strategies. But moving to such platforms comes at a high price.
 
-Integrate consumers
+Consumers integration
 ===
 
 
