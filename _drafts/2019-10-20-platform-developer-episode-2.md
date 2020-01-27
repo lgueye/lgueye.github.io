@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Platform developer: episode 1
+title: Platform developer: episode 2
 ---
 
 Hello everybody welcome back to the `Platform developer` series. In this episode we'll be taking on the discovery component.
@@ -75,7 +75,7 @@ Operating the cloud provider requires credentials. In the case of [Digital Ocean
 Also, any provider somehow needs to configure the `root account` of the instance being created. It's usually the `root` ssh key pairs which will be uploaded in the `/root/.ssh` folder of the instance.
 But these are credentials. You can't hardcode them nor include them in your terraform scripts since they're pushed in your SCM. You need to provide them in the command line and reuse them in the terraform scripts.
 
-I use [Hashicorp Terraform]() to drive my [Digital Ocean]() provider.
+Terraform drives [Digital Ocean]() API.
 You must install it.
 ```
 $ terraform -version

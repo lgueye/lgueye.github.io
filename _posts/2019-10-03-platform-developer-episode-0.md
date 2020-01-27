@@ -1,6 +1,6 @@
 ---
 layout: post
-title: Building a platform the hard way: episode 0
+title: Platform developer: episode 0
 ---
 
 The main business of my previous company was to provide a `security system` for `elderly people`.
@@ -29,11 +29,13 @@ The worst case scenario for an emergency system is to miss an emergency situatio
 
 By now, you should have a pretty good picture of the 2 critical constraints of the platform.
 
-Addressing the correctness is the responsibility of the software: we simply can't save on automated tests. The software design was driven upfront by tests scenarii.
-One of the trickiest part was to be able to control the time which was had been made so much easier with the java 8 Time API.
+Addressing the correctness is the responsibility of the software: we simply can't save on automated tests. The software design was driven upfront by tests scenarios.
+
+One of the trickiest part was to be able to control the time which had been made so much easier with the java 8 Time API.
+
 The other non trivial part was related to the asynchronous nature of the system: a lot of communications between backends involve producer backends sending messages to queues then consumers backends reacting on such notifications. We needed to assert some expected state of the system `within X ms`. 
 
-Addressing the availability of the system was the responsibility of the platform. But I would nuance this claim because availability implicitly forces your software to support `distribution` (cross datacenter distribution or single datacecenter distribution) and everybody knows that distributed comes with its own sets of challenges, the most difficult one being properly handling state distribution (ie transactions atomicity).
+Addressing the availability of the system was the responsibility of the platform. But I would nuance this claim because availability implicitly forces your software to support `distribution` (cross data-center distribution or single data-center distribution) and everybody knows that distributed comes with its own sets of challenges, the most difficult one being handling state distribution properly (ie transactions atomicity).
  
 Once you go distributed (because you need to tackle availability) you can't go half way. Your entire stack needs to be distributed. This is not entirely true: the business-critical components need to be distributed. Others could technically be unavailable without any client noticing the difference. That's why we conducted an analysis to assert each component business criticity which helped us focusing our efforts. Find below the summary:
  
@@ -55,9 +57,11 @@ Once you go distributed (because you need to tackle availability) you can't go h
 
 All `platform provided` components form a cohesive set of technical services used to build business solutions. They should be implemented with ease of use in mind. Their main consumers are the Product/Business components.
 
-The `business critical` will require the component to be `distributed`. Others can be but are not force to.
+The `business critical` will require the component to be `distributed`. Others can be but are not forced to.
 
 This post series will focus on the platform provided components, why they're used in the first place and which challenges we could face when trying to implement them.
 
-I might eventually write a post for each component/feature but I can't promise. Stay tuned for the next episode which should be about discovery
+You don't provide a dozen of platform components in your company without industrialization practices. 
+
+You need a great deal of focus, discipline as well as a dose of empathy for the consumers. In the [next episode](/2019-10-27-platform-developer-episode-1) I'll share the steps that we followed to develop our most critical components. Stay tuned !
 
